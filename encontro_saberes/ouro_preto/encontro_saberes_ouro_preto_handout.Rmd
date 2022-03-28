@@ -1,0 +1,440 @@
+---
+title: "Encontro dos Saberes RESEX do Rio Ouro Preto (2022)"
+runningheader: "Análise mamíferos terrestres – 2017 a 2021" # only for pdf output
+subtitle: "Análise mamíferos terrestres – 2017 a 2021" # only for html output
+author: "Elildo Carvalho Jr - ICMBio/CENAP"
+date: "`r Sys.Date()`"
+output:
+  tufte::tufte_handout:
+    citation_package: natbib
+    latex_engine: xelatex
+  tufte::tufte_html: default
+  tufte::tufte_book:
+    citation_package: natbib
+    latex_engine: xelatex
+bibliography: skeleton.bib
+link-citations: yes
+---
+
+```{r setup, include=FALSE}
+library(tufte)
+# invalidate cache when the tufte version changes
+knitr::opts_chunk$set(cache.extra = packageVersion('tufte'))
+options(htmltools.dir.version = FALSE)
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# rodar codigo para ouro_preto
+#source(here("encontro_saberes", "encontro_saberes_ouro_preto.R"))
+# Carregar pacotes
+library(here)
+library(tidyverse)
+library(lubridate)
+library(R2jags)
+
+# carregar funcoes
+#source(here("bin", "lpi_icmbio.R"))
+#source(here("experimental", "population-functions_ouro_preto2014-2020.R"))
+
+# para os testes usar dados de ouro_preto-Iracema
+ouro_preto <- read_csv(here("encontro_saberes", "data", "Planilha Masto Aves 2017 a 21 Resex Ouro Preto Validada.csv")) 
+
+# arrumar os dados
+ouro_preto <- ouro_preto %>%
+  rename(nome_UC = "Local - Nome da Unidade de Conservação",
+         estacao_amostral = "Número da Estação Amostral",
+         nome_ea = `Nome da EA`,
+         esforco = "Esforço de amostragem tamanho da trilha (m)",
+         data = "data da amostragem",
+         ano = "Ano",
+         classe = "Classe",
+         ordem = "Ordem",
+         familia = "Família",
+         genero = "Gênero",
+         especie = "Espécies validadas para análise do ICMBio",
+         n_animais = "n° de animais",
+         distancia = "distância (m)     do animal em relação a trilha") %>%
+  select(nome_UC, estacao_amostral, nome_ea, esforco, data, ano, classe, ordem,
+         familia, genero, especie, n_animais, distancia) %>%
+  mutate(data = as.Date(data, "%d/%m/%Y"),
+         distancia =  as.numeric(str_replace(distancia, ",", ".")) )
+ouro_preto
+
+# checar especies e corrigir nomes se necessario
+ouro_preto %>%
+  filter(classe == "Mammalia") %>% #, ordem != "Primates") %>%
+  group_by(especie) %>%
+  count() %>%
+  arrange() %>%
+  print(n=Inf)
+
+ouro_preto <- ouro_preto %>%
+  mutate(especie = replace(especie, especie == "Dasyprocta sp.",
+                           "Dasyprocta fuliginosa") )
+
+# tabela 1: registros por especie
+tabela_1 <- ouro_preto %>%
+  filter(classe == "Mammalia",
+         ordem != "Primates") %>%
+  group_by(especie) %>%
+  summarize(n = n(),
+            n_ind = sum(n_animais))%>%
+  left_join(ouro_preto %>%
+              select(ordem, familia, especie), by="especie") %>%
+  distinct(especie, .keep_all = TRUE) %>%
+  arrange(ordem, familia, especie) %>%
+  mutate(nome_popular = ifelse(especie == "Cavia fulgida", "Preá",
+                               ifelse(especie == "Cerdocyon thous", "Raposinha",
+                                      ifelse(especie == "Cuniculus paca", "Paca",
+                                             ifelse(especie == "Dasyprocta fuliginosa", "Cutia",
+                                                    ifelse(especie == "Dasypus kappleri", "Tatu-quinze-quilos",
+                                                           ifelse(especie == "Dasypus novemcinctus", "Tatu-galinha",
+                                                                  ifelse(especie == "Myrmecophaga tridactyla", "Tamanduá=bandeira",
+                                                                         ifelse(especie == "Mazama americana", "Veado-mateiro",
+                                                                                ifelse(especie == "Mazama nemorivaga", "Veado-fuboca",
+                                                                                       ifelse(especie == "Pecari tajacu", "Caititu",
+                                                                                              ifelse(especie == "Nasua nasua", "Quati",
+                                                                                                     ifelse(especie == "Tamandua tetradactyla", "Mambira",
+                                                                                                            ifelse(especie == "Dasypus novencimctus", "Tatu-galinha",
+                                                                                                                   ifelse(especie == "Tayassu pecari", "Queixada",
+                                                                                                                          ifelse(especie == "Urosciurus spadiceus", "Quatipuru",
+                                                                                                                                 "no" )))))))))))))))) %>%
+  select(ordem, familia, especie, nome_popular, n, n_ind) %>%
+  rename(Ordem = ordem, Familia = familia, Especie = especie, 
+         'Nome popular' = nome_popular, Encontros = n,
+         Individuos = n_ind)
+
+
+# esforco por ano
+esforco_anual <- ouro_preto %>%
+  group_by(ano) %>%
+  summarize(esforco = sum(esforco, na.rm = TRUE))
+
+# numero de registros por ano
+n_registros <- ouro_preto %>%
+  filter(classe == "Mammalia",
+         ordem != "Primates") %>%
+  group_by(ano, especie) %>%
+  count()
+
+# taxa de encontro por ano
+taxa_encontro <- left_join(esforco_anual, n_registros, by=c("ano")) %>%
+  mutate(taxa_encontro = n/(esforco/1000)) %>%
+  select(ano, especie, taxa_encontro) %>%
+  arrange(especie, ano)
+
+# colocar em formato wide
+taxa_encontro_wide <- taxa_encontro %>%
+  pivot_wider(names_from = ano, values_from = taxa_encontro) %>%
+  select(especie, `2017`,  `2018`, `2019`, `2020`, `2021`) %>%
+  replace(is.na(.), 0.001)
+
+# selecionar as especies mais comuns (taxa media > 0.025)
+taxa_encontro_wide <- taxa_encontro_wide %>%
+  mutate(means = rowMeans(.[,2:6])) %>%
+  arrange(desc(means)) %>%
+  filter(means > 0.05) %>%
+  #select(-means) %>%
+  mutate_at(2:6, round, 2)
+```
+
+## Apresentação
+
+Este relatório apresenta resultados do Programa Monitora, Subprograma Terrestre, Componente Florestal Global, Alvo Mamíferos terrestres de médio e grande porte, protocolo básico, na **Reserva Extrativista do Rio Ouro Preto**, 2017 a 2021. O principal objetivo é subsidiar o Encontro dos Saberes que será realizado nesta unidade.
+
+Por se tratar de um relatório simplificado, este documento não inclui detalhes sobre métodos de coleta ou análise dos dados. Ele também não inclui detalhes sobre o esforço de amostragem, pois essa informação já consta do relatório produzido pelo CEMAVE. Portanto, o relatório apenas apresenta as variações anuais nas populações de espécies selecionadas de mamíferos de médio e grande porte.
+
+
+## Número total de encontros
+
+A tabela 1 apresenta o número total de encontros e de indivíduos avistados por espécie, e a Figura 1 apresenta o número total de encontros para as espécies que tiveram pelo menos 5 encontros ao longo de todo o monitoramento.
+
+As espécies mais encontradas foram, nessa ordem: cutia, caititu, quatipuru e veado fuboca/mateiro. As outras espécies foram encontradas poucas vezes. Algumas espécies vivem em grupos, por isso o número indivíduos pode ser maior do que o número de encontros. De forma geral, as espécies com mais indivíduos foram também as mais encontradas.
+
+É importante lembrar que só porque uma espécie foi registrada poucas vezes, não quer dizer necessariamente que ela seja rara. Por exemplo, o protocolo não funciona bem para espécies noturnas como as antas e as pacas, pois as trilhas são percorridas durante o dia, quando essas espécies estão menos ativas. Além disso, espécies que são caçadas podem ficar muito ariscas, fugindo ao menor sinal da aproximação de pessoas. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(knitr)
+library(kableExtra)
+knitr::kable(
+  tabela_1,
+  caption = 'Tabela 1. Numero de registros por especie obtidos pelo protocolo básico do Programa Monitora na Resex do Rio Ouro Preto, 2017-2021', booktabs = T, align = c("l", "l", "l", "l", "c")
+  )
+```
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 1. Número total de encontros por espécie na Resex do Rio Ouro Preto, 2014-2021. Somente espécies com mais de 5 encontros foram incluídas"}
+
+total_encontros_por_spp <- tabela_1 %>%
+  filter(Encontros > 5) %>%
+  ggplot(aes(x = reorder(`Nome popular`, -Encontros), y = Encontros)) +
+  geom_col() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  xlab("Espécie") + ylab("Número de encontros") +
+  theme_bw() +
+  theme(text = element_text(size=14))
+#total_encontros_por_spp
+
+#include_graphics(here("encontro_saberes", "total_encontros_por_spp.jpeg"))
+total_encontros_por_spp
+
+```
+
+
+# Tendências populacionais
+
+Somente a cutia apresentou taxa de encontro anual média > 0.05 ind/km, o que equivale aproximadamente a um encontro a cada 20 km percorridos (Tabela 2, Figura 1). As outras especies não tiveram número de eoncontros suficiente para permitir uma análise de suas tendências populacionais.
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+knitr::kable(
+  taxa_encontro_wide,
+  caption = 'Tabela 2. Taxa de encontro anuais para as especies mais comuns de mamíferos terrestres em do Rio Ouro Preto. Somente espécies com taxa de encontro anual média > 0.05 ind/km foram incluídas', booktabs = T, align = c("l", "c")
+  )
+
+```
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+# funcao para gerar y por trilha para sp selecionada
+calcular.registros.por.trilha <- function(nome_especie) {
+  
+  # esforco por ano por trilha
+  esforco_anual_trilha <- ouro_preto %>%
+    group_by(ano, estacao_amostral) %>%
+    summarize(esforco = sum(esforco, na.rm = TRUE)) %>%
+    pivot_wider(names_from = ano, values_from = esforco) %>%
+    select(estacao_amostral, `2017`,  `2018`, `2019`, `2020`, `2021`)
+  esforco_anual_trilha
+  
+  # numero de registros por ano por trilha
+  n_registros_trilha <- ouro_preto %>%
+    filter(especie == nome_especie) %>%
+    group_by(ano, estacao_amostral) %>%
+    count() %>%
+    mutate(n = as.numeric(n)) %>%
+    pivot_wider(names_from = ano, values_from = n) %>%
+    select(estacao_amostral, `2017`,  `2018`, `2019`, `2020`, `2021`) %>%
+    replace(is.na(.), 0.001)
+  n_registros_trilha
+  
+  # combinar registros e esforco para obter taxa de encontro
+  esforco_anual_trilha <- esforco_anual_trilha %>%
+    select(-estacao_amostral) %>%
+    replace(is.na(.), 500) # inputar valor arbitrariamente alto para deixar numero de registros baixo mas !=0
+  n_registros_trilha <- n_registros_trilha %>%
+    ungroup() %>%
+    select(-estacao_amostral)
+  
+  y <- n_registros_trilha/(esforco_anual_trilha/1000)
+  
+  return(y)
+  
+}
+
+# funcao para rodar modelo populacional bayesiano
+state.space.model <- function(y) {
+  # especificar modelo na linguagem BUGS
+  sink(here("encontro_saberes", "ouro_preto", "ssm.jags"))
+  cat("
+  model {
+  # Priors and constraints
+  for(ea in 1:3) {
+  logN.est[ea, 1] ~ dnorm(0, 0.01)       # Prior for initial population size
+  mean.r[ea] ~ dnorm(1, 0.001)             # Prior for mean growth rate
+  }
+  sigma.proc ~ dunif(0, 1)             # Prior for sd of state process
+  sigma2.proc <- pow(sigma.proc, 2)
+  tau.proc <- pow(sigma.proc, -2)
+  sigma.obs ~ dunif(0, 1)              # Prior for sd of observation process
+  sigma2.obs <- pow(sigma.obs, 2)
+  tau.obs <- pow(sigma.obs, -2)
+  
+  # Likelihood
+  # State process
+  for (year in 1:(n_years-1)) {
+    for(ea in 1:3) {
+      r[ea, year] ~ dnorm(mean.r[ea], tau.proc)
+      logN.est[ea, year+1] <- logN.est[ea, year] + r[ea, year]
+    }
+   }
+  # Observation process
+    for (year in 1:n_years) {
+      for(ea in 1:3) {
+        y[ea, year] ~ dnorm(logN.est[ea, year], tau.obs)
+      }
+   }
+   
+  # Population sizes on real scale
+  for (year in 1:n_years) {
+    for(ea in 1:3) {
+     N.est[ea, year] <- exp(logN.est[ea, year])/100
+    }
+  }
+  
+  # Derived parameter: mean encounter rate
+  for(year in 1:n_years) {
+      mean_N[year] <- mean(N.est[, year])
+  }
+    
+  }
+  ",fill = TRUE)
+  sink()
+  
+  #  definir y
+  y <-  y
+  
+  # definir numero de anos
+  n_years <- ncol(y)
+  
+  # juntar os dados
+  jags.data <- list(y = log(y*100), n_years = n_years)
+  
+  # Initial values
+  #inits <- function(){
+  #  list(sigma.proc = runif(1, 0, 1), mean.r = rnorm(1),
+  #       sigma.obs = runif(1, 0, 1),
+  #       LogN.est = rbind(c(rnorm(1, -0.5, 0.1), rep(NA, (n.years-1))),
+  #                        c(rnorm(1, -0.5, 0.1), rep(NA, (n.years-1))),
+  #                        c(rnorm(1, -0.5, 0.1), rep(NA, (n.years-1))) )
+  #} 
+  #inits()
+  
+  # Parametros monitorados
+  parameters <- c("mean_N", "r", "mean.r", "sigma2.obs", "sigma2.proc", "N.est")
+  
+  # definicoes MCMC
+  ni <- 25000
+  nt <- 3
+  nb <- 10000
+  nc <- 3
+  
+  # chamar o JAGS a partir do R
+  ssm <- jags(jags.data, inits=NULL, parameters, here("encontro_saberes", "ouro_preto", "ssm.jags"), n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb)
+  
+  # checar resultados
+  print(ssm, digits = 2)
+  
+  # Probabiliade de N(2021) < N(2014)
+  #mean(ssm$BUGSoutput$sims.list$N.est[,8] < ssm$BUGSoutput$mean$N.est[1])
+  
+  assign("N.est", ssm$BUGSoutput$sims.list$N.est, .GlobalEnv)
+  assign("mean_N", ssm$BUGSoutput$sims.list$mean_N, .GlobalEnv) 
+  assign("meanR", ssm$BUGSoutput$sims.list$mean.r, .GlobalEnv) 
+  assign("ssm", ssm, .GlobalEnv)
+  
+}
+
+
+# funcao para rodar modelo e gerar grafico para cada especie 
+computar.plotar.taxa_encontro <- function(nome_especie) {
+  
+  # preparar dados
+  y <- calcular.registros.por.trilha(nome_especie)
+  n_years <- ncol(y)
+  
+  # rodar modelo bayesiano
+  state.space.model(y)
+  
+  # computar quantis
+  modelo_quantis <- as_tibble(mean_N) %>%
+    pivot_longer(1:5, names_to = "year") %>%
+    group_by(year) %>%
+    summarize(quant025 = quantile(value, probs = 0.025),
+              quant25 = quantile(value, probs = 0.25), 
+              quant50 = quantile(value, probs = 0.5),
+              quant75 = quantile(value, probs = 0.75),
+              quant975 = quantile(value, probs = 0.975)) %>%
+    mutate(ano = c(2017:2021))
+  modelo_quantis
+  
+  # plotar com ribbons
+  plot_tendencia <- ggplot() + 
+    geom_ribbon(data=modelo_quantis, aes(x=ano, ymin=quant025, ymax=quant975),fill="coral", alpha=0.2) +
+    geom_ribbon(data=modelo_quantis, aes(x=ano, ymin=quant25, ymax=quant75),fill="coral3", alpha=0.3) +
+    geom_line(data=modelo_quantis, aes(x=ano, y=quant50), size=0.5, alpha=0.5) +
+    geom_point(data=modelo_quantis, aes(x=ano, y=quant50), size=2, alpha=0.5) +
+    #stat_smooth(data=modelo_quantis, aes(x=ano, y=quant50), method = "lm", formula = y ~ poly(x, 5), se = FALSE) +
+    ylim(0, max(modelo_quantis$quant975)+0.05) +
+    xlab("Ano") + 
+    ylab("Taxa de encontro") +
+    theme_bw() +
+    theme(text = element_text(size=14)) #+
+  #theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+  plot_tendencia
+  
+  # salvar jpeg
+  ggsave(here("encontro_saberes", "ouro_preto", paste(nome_especie, "2017 a 2021.jpeg", sep = " ")) )
+  
+  
+  # plotar por transecto
+  dim(N.est)
+  N_trilha1 <- apply(N.est[,1,], 2, mean)
+  N_trilha2 <- apply(N.est[,2,], 2, mean)
+  N_trilha3 <- apply(N.est[,3,], 2, mean)
+  N.est_por_trilha <- as_tibble(rbind(N_trilha1,
+                                       N_trilha2,
+                                       N_trilha3)) %>%
+    rename('2017' = V1, '2018' = V2, '2019' = V3, '2020' = V4, '2021' = V5) %>%
+    mutate(trilha = c("Francisco Leonel", "Manoel Teofilo", "Serra Grande")) %>%
+    pivot_longer(1:5, names_to = "ano")
+  N.est_por_trilha
+  plot_tendencia_trilha <- ggplot() + 
+    geom_line(data=N.est_por_trilha, aes(x=ano, y=value, group=trilha, color=trilha), size=3, alpha=0.5) +
+    geom_point(data=N.est_por_trilha, aes(x=ano, y=value, group=trilha, color=trilha), size=5, alpha=0.5) +
+    ylim(0, max(N.est_por_trilha$value)+0.05) +
+    xlab("Ano") + 
+    ylab("Taxa de encontro") +
+    theme_bw() +
+    theme(text = element_text(size=14))
+  plot_tendencia_trilha
+  
+  # salvar jpeg
+  ggsave(here("encontro_saberes", "ouro_preto", paste(nome_especie, "2017 a 2021 por trilha.jpeg", sep = " ")) )
+  
+}
+
+computar.plotar.taxa_encontro("Dasyprocta fuliginosa")
+
+```
+
+
+```{r, fig.cap="Taxa de encontro anual para cutia na Resex do Rio Ouro_Preto, 2017-2021"}
+include_graphics(here("encontro_saberes", "ouro_preto", "Dasyprocta fuliginosa 2017 a 2021.jpeg"))
+#plot_tendencia
+```
+
+
+
+# Tendências populacionais por trilha
+
+A figuras 1 apresentou as tendências populacionais médias para a cutia, agregando os dados de todas as trilhas. A figura 2 mostra como essas tendências variaram para cada trilha separadamente.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 6. Taxa de encontro anual para cutia por trilha na Resex do Rio Ouro Preto, 2017-2021"}
+include_graphics(here("encontro_saberes", "ouro_preto", "Dasyprocta fuliginosa 2017 a 2021 por trilha.jpeg"))
+#plot_tendencia_trilha
+```
+
+Como se pode observar nas figuras acima, houve enorme variação nas tendências populacionais entre as trilhas. Em alguns casos, elas parecem concordar entre si. Por exemplo, os quatipurus declinaram em todas as trilhas, embora tenha ocorrido um aumento temporário entre 2017 e 2018 na trilha Alto Caeté. A cutia declinou entre 2016 e 2017 em todas as trilhas (mas depois disso, ela se recuperou nas trilhas Cazumbá e Gama, mas sofreu uma nova queda na trilha Alto Caeté). O caititu declinou nas trilhas Caeté e Gama (mas aumentou na trilha Cazumbá).
+
+Em outros casos, as trilhas contam histórias totalmente diferentes: a cutiara permaneceu relativamente estável na trilha Gama, declinou na trilha Cazumbá e aumentou na trilha Alto Caeté.
+
+
+# Perguntas e reflexões
+
+O que está acontecendo com os quatipurus? Eles estão realmente declinando, ou as pessoas estão registrando menos por ser uma espécie pequena, que não é caçada etc.?
+
+De forma geral, a população de cutias parece estar estável. No entanto, elas sofreram um tombo em 2017. O que aconteceu nesse ano? Houve algum evento incomum, como uma seca mais forte ou algum desequilíbrio ambiental? 
+
+A cutiara também parece ter sofrido uma queda entre 2015 e 2017, mas não foi um tombo tão forte como o da cutia. O que será que aconteceu?
+
+O caititu parece estar estável... ou está declinando bem devagar ao longo dos anos? Somente com mais anos de monitoramento poderemos saber.
+
+Porque as tendências populacionais variaram tanto entre as trilhas?
+
+Porque é importante monitorar várias trilhas ao invés de apenas uma?
+
+
+
