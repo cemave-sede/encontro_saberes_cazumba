@@ -77,6 +77,7 @@ tabela_esforco <- cazumba %>%
   group_by(estacao_amostral, nome_ea, ano) %>%
   summarize(eff = sum(esforco, na.rm=TRUE)/1000) %>%
   ungroup() %>%
+  arrange(ano) %>%
   pivot_wider(names_from = ano, values_from = eff) %>%
   rename('EA' = estacao_amostral, 'nome EA' = nome_ea)
 
@@ -408,6 +409,7 @@ computar.plotar.taxa_encontro <- function(nome_especie) {
   #theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
   plot_tendencia
   
+  
   # salvar jpeg
   #ggsave(paste(nome_especie, "2014 a 2021.jpeg", sep = " "))
   
@@ -435,12 +437,17 @@ computar.plotar.taxa_encontro <- function(nome_especie) {
     theme_bw() +
     theme(text = element_text(size=14))
   plot_tendencia_trilha
+
   
   # salvar jpeg
   #ggsave(paste(nome_especie, "2014 a 2021 por trilha.jpeg", sep = " "))
   
-  assign("plot_tendencia", plot_tendencia, .GlobalEnv)
-  assign("plot_tendencia_trilha", plot_tendencia_trilha, .GlobalEnv)
+  #assign("plot_tendencia", plot_tendencia, .GlobalEnv)
+  #assign("plot_tendencia_trilha", plot_tendencia_trilha, .GlobalEnv)
+  assign(paste("plot_tendencia_trilha", gsub(" ", "_", nome_especie), sep="_"), 
+         plot_tendencia_trilha, .GlobalEnv)
+  assign(paste("plot_tendencia", gsub(" ", "_", nome_especie), sep="_"),
+         plot_tendencia, .GlobalEnv)
   
 }
 
@@ -454,23 +461,23 @@ computar.plotar.taxa_encontro("Pecari tajacu")
 
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 2. Taxa de encontro anual para cutia na RESEX Cazumbá-Iracema, 2014-2021"}
-plot_tendencia
+plot_tendencia_Sciuridae
 
 ```
 
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 2. Taxa de encontro anual para cutia na RESEX Cazumbá-Iracema, 2014-2021"}
-plot_tendencia
+plot_tendencia_Dasyprocta_fuliginosa
 
 ```
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 2. Taxa de encontro anual para cutia na RESEX Cazumbá-Iracema, 2014-2021"}
-plot_tendencia
+plot_tendencia_Myoprocta_pratti
 
 ```
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 2. Taxa de encontro anual para cutia na RESEX Cazumbá-Iracema, 2014-2021"}
-plot_tendencia
+plot_tendencia_Pecari_tajacu
 
 ```
 
@@ -480,8 +487,26 @@ plot_tendencia
 A análise anterior avaliou as tendências médias, agregando os dados de todas a trilhas. No entanto, também é importante avaliar o que acontece em cada trilha separadamente. A figura 3 mostra que as trilhas apresentam tendências razoavelmente parecidas, apesar de faltarem dados para algumas trilhas em alguns anos e haver certa variação entre as trilhas. 
 
 
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 3. Taxa de encontro anual para quatipuru por trilha na RESEX Cazumbá-Iracema, 2014-2021"}
+plot_tendencia_trilha_Sciuridae
+
+```
+
+
 ```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 3. Taxa de encontro anual para cutia por trilha na RESEX Cazumbá-Iracema, 2014-2021"}
-plot_tendencia_trilha
+plot_tendencia_trilha_Dasyprocta_fuliginosa
+
+```
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 3. Taxa de encontro anual para cutia por trilha na RESEX Cazumbá-Iracema, 2014-2021"}
+plot_tendencia_trilha_Myoprocta_pratti
+
+```
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 3. Taxa de encontro anual para cutia por trilha na RESEX Cazumbá-Iracema, 2014-2021"}
+plot_tendencia_trilha_Pecari_tajacu
 
 ```
 
