@@ -460,7 +460,7 @@ computar.plotar.taxa_encontro("Pecari tajacu")
 
 
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 2. Taxa de encontro anual para cutia na RESEX Cazumbá-Iracema, 2014-2021"}
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 2. Taxa de encontro anual para quatipuru na RESEX Cazumbá-Iracema, 2014-2021"}
 plot_tendencia_Sciuridae
 
 ```
@@ -471,12 +471,12 @@ plot_tendencia_Dasyprocta_fuliginosa
 
 ```
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 2. Taxa de encontro anual para cutia na RESEX Cazumbá-Iracema, 2014-2021"}
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 2. Taxa de encontro anual para cutiara na RESEX Cazumbá-Iracema, 2014-2021"}
 plot_tendencia_Myoprocta_pratti
 
 ```
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 2. Taxa de encontro anual para cutia na RESEX Cazumbá-Iracema, 2014-2021"}
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 2. Taxa de encontro anual para caititu na RESEX Cazumbá-Iracema, 2014-2021"}
 plot_tendencia_Pecari_tajacu
 
 ```
@@ -499,13 +499,13 @@ plot_tendencia_trilha_Dasyprocta_fuliginosa
 ```
 
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 3. Taxa de encontro anual para cutia por trilha na RESEX Cazumbá-Iracema, 2014-2021"}
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 3. Taxa de encontro anual para cutiara por trilha na RESEX Cazumbá-Iracema, 2014-2021"}
 plot_tendencia_trilha_Myoprocta_pratti
 
 ```
 
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 3. Taxa de encontro anual para cutia por trilha na RESEX Cazumbá-Iracema, 2014-2021"}
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 3. Taxa de encontro anual para caititu por trilha na RESEX Cazumbá-Iracema, 2014-2021"}
 plot_tendencia_trilha_Pecari_tajacu
 
 ```
