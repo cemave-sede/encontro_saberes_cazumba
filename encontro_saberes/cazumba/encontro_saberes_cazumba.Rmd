@@ -1,5 +1,5 @@
 ---
-title: "Encontro dos Saberes FLONA do Jamari (2022)"
+title: "Encontro dos Saberes RESEX Cazumbá-Iracema (2022)"
 runningheader: "Análise mamíferos terrestres – 2014 a 2021" # only for pdf output
 subtitle: "Análise mamíferos terrestres – 2014 a 2021" # only for html output
 author: "Elildo Carvalho Jr - ICMBio/CENAP"
@@ -22,7 +22,7 @@ library(tufte)
 knitr::opts_chunk$set(cache.extra = packageVersion('tufte'))
 options(htmltools.dir.version = FALSE)
 library(here)
-knitr::opts_knit$set(root.dir = here("encontro_saberes", "jamari"))
+knitr::opts_knit$set(root.dir = here("encontro_saberes", "cazumba"))
 ```
 
 
@@ -36,10 +36,10 @@ library(lubridate)
 library(R2jags)
 
 # ler dados
-jamari <- read_csv("Planilha Masto Aves Oficial Jamari 2014 a 2021.csv") 
+cazumba <- read_csv("cazumba-2014-2021.csv") 
 
 # arrumar os dados
-jamari <- jamari %>%
+cazumba <- cazumba %>%
   rename(nome_UC = "Local - Nome da Unidade de Conservação",
          estacao_amostral = "Número da Estação Amostral",
          nome_ea = `Nome da EA`,
@@ -57,73 +57,81 @@ jamari <- jamari %>%
          familia, genero, especie, n_animais, distancia) %>%
   mutate(data = as.Date(data, "%d/%m/%Y"),
          distancia =  as.numeric(str_replace(distancia, ",", ".")) )
-jamari
+cazumba
 
 # checar especies e corrigir nomes se necessario
-jamari %>%
+cazumba %>%
   filter(classe == "Mammalia") %>% #, ordem != "Primates") %>%
   group_by(especie) %>%
   count() %>%
   arrange() %>%
   print(n=Inf)
 
-jamari <- jamari %>%
-  mutate(especie = replace(especie, especie %in% c("Guerlinguetus aestuans", "Urosciurus spadiceus"), 
-                           "Sciuridae") )
+# agrupar sciurideos
+cazumba <- cazumba %>%
+  mutate(especie = replace(especie, especie %in% c("Guerlinguetus ignitus", "Urosciurus spadiceus", "Microsciurus flaviventer"),
+                           "Sciuridae"))
 
 # tabela esforco
-tabela_esforco <- jamari %>%
+tabela_esforco <- cazumba %>%
   group_by(estacao_amostral, nome_ea, ano) %>%
   summarize(eff = sum(esforco, na.rm=TRUE)/1000) %>%
   ungroup() %>%
-  arrange(ano) %>%
   pivot_wider(names_from = ano, values_from = eff) %>%
   rename('EA' = estacao_amostral, 'nome EA' = nome_ea)
 
 
 # tabela 1: registros por especie
-tabela_1 <- jamari %>%
+tabela_1 <- cazumba %>%
   filter(classe == "Mammalia",
          ordem != "Primates") %>%
   group_by(especie) %>%
   summarize(n = n(),
             n_ind = sum(n_animais))%>%
-  left_join(jamari %>%
+  left_join(cazumba %>%
               select(ordem, familia, especie), by="especie") %>%
   distinct(especie, .keep_all = TRUE) %>%
   arrange(ordem, familia, especie) %>%
-  mutate(nome_popular = ifelse(especie == "Cabassous unicinctus", "Tatu-de-rabo-mole",
-                        ifelse(especie == "Dasyprocta fuliginosa", "Cutia",
-                        ifelse(especie == "Eira barbara", "Irara",
-                        ifelse(especie == "Hydrochoerus hydrochaeris", "Capivara",
+    mutate(nome_popular = ifelse(especie == "Mazama americana", "Veado-mateiro",
                         ifelse(especie == "Mazama americana", "Veado-mateiro",
-                        ifelse(especie == "Mazama nemorivaga", "Veado-fuboca",
-                        ifelse(especie == "Mazama sp.", "Veado",
-                        ifelse(especie == "Myrmecophaga tridactyla", "Tamanduá-bandeira",
-                        ifelse(especie == "Nasua nasua", "Quati",
-                        ifelse(especie == "Panthera onca", "Onça-pintada",
                         ifelse(especie == "Pecari tajacu", "Caititu",
+                        ifelse(especie == "Tayassu pecari", "Queixada",
+                        ifelse(especie == "Speothos venaticus", "Janauira",
+                        ifelse(especie == "Leopardus pardalis", "Maracajá-açu",
+                        ifelse(especie == "Leopardus tigrinus", "Gato-do-mato",
+                        ifelse(especie == "Leopardus wiedii", "Maracajá-peludo",
+                        ifelse(especie == "Panthera onca", "Onça-pintada",
                         ifelse(especie == "Puma concolor", "Onça-vermelha",
                         ifelse(especie == "Puma yagouaroundi", "Gato-mourisco",
-                        ifelse(especie == "Sciuridae", "Quatipuru",
-                        ifelse(especie == "Sylvilagus brasiliensis", "Tapeti",
-                        ifelse(especie == "Tamandua tetradactyla", "Mambira",
+                        ifelse(especie == "Eira barbara", "Irara",
+                        ifelse(especie == "Galictis vittata", "Furão",
+                        ifelse(especie == "Nasua nasua", "Quati",
+                        ifelse(especie == "Cabassous unicinctus", "Tatu-de-rabo-mole",
+                        ifelse(especie == "Dasypus novemcinctus", "Tatu-galinha",
+                        ifelse(especie == "Priodontes maximus", "Tatu-canastra",
                         ifelse(especie == "Tapirus terrestris", "Anta",
-                        ifelse(especie == "Tayassu pecari", "Queixada",
-                        "no" ))))))))))))))))))) %>%
-  select(ordem, familia, especie, nome_popular, n, n_ind) %>%
+                        ifelse(especie == "Bradypus variegatus", "Preguiça",
+                        ifelse(especie == "Choloepus hoffmanni", "Preguiça-real",
+                        ifelse(especie == "Myrmecophaga tridactyla", "Tamanduá-bandeira",
+                        ifelse(especie == "Tamandua tetradactyla", "Mambira",
+                        ifelse(especie == "Dasyprocta fuliginosa", "Cutia",
+                        ifelse(especie == "Myoprocta pratti", "Cutiara",
+                        ifelse(especie == "Coendou bicolor", "Quandú",
+                        ifelse(especie == "Sciuridae", "Quatipuru",
+                        "no" ))))))))))))))))))))))))))) %>%
+select(ordem, familia, especie, nome_popular, n, n_ind) %>%
   rename(Ordem = ordem, Familia = familia, Especie = especie, 
          'Nome popular' = nome_popular, Encontros = n,
          Individuos = n_ind)
 
 
 # esforco por ano
-esforco_anual <- jamari %>%
+esforco_anual <- cazumba %>%
   group_by(ano) %>%
   summarize(esforco = sum(esforco, na.rm = TRUE))
 
 # numero de registros por ano
-n_registros <- jamari %>%
+n_registros <- cazumba %>%
   filter(classe == "Mammalia",
          ordem != "Primates") %>%
   group_by(ano, especie) %>%
@@ -164,12 +172,12 @@ total_encontros_por_spp <- tabela_1 %>%
 
 ## Apresentação
 
-Este relatório apresenta resultados do Programa Monitora, Subprograma Terrestre, Componente Florestal Global, Alvo Mamíferos terrestres de médio e grande porte, protocolo básico, na **Floresta Nacional do Jamari**, 2014 a 2021. O principal objetivo é subsidiar o Encontro dos Saberes que será realizado nesta unidade.
+Este relatório apresenta resultados do Programa Monitora, Subprograma Terrestre, Componente Florestal Global, Alvo Mamíferos terrestres de médio e grande porte, protocolo básico, na **Reserva Extrativista Cazumbá-Iracema**, 2014 a 2021. O principal objetivo é subsidiar o Encontro dos Saberes que será realizado nesta unidade.
 
 
 ## Métodos
 
-O protocolo básico para mamíferos utiliza o método de transecções lineares. Resumidamente, dois observadores percorrem as transecções a uma velocidade constante e registram, para cada avistamento de animais dos grupos-alvo, a espécie, o número de indivíduos e a distância perperndicular entre o primeiro indivíduo avistado e o centro da trilha. Cada UC deve ter pelo menos três transectos de 5 km e o esforço anual mínimo, combinando todos os transectos, deve ser de 150 km percorridos. A tabela 1 apresenta o esforço anual por trilha na FLONA do Jamari.
+O protocolo básico para mamíferos utiliza o método de transecções lineares. Resumidamente, dois observadores percorrem as transecções a uma velocidade constante e registram, para cada avistamento de animais dos grupos-alvo, a espécie, o número de indivíduos e a distância perperndicular entre o primeiro indivíduo avistado e o centro da trilha. Cada UC deve ter pelo menos três transectos de 5 km e o esforço anual mínimo, combinando todos os transectos, deve ser de 150 km percorridos. A tabela 1 apresenta o esforço anual por trilha na RESEX Cazumbá-Iracema.
 
 
 
@@ -178,14 +186,14 @@ library(knitr)
 library(kableExtra)
 knitr::kable(
   tabela_esforco,
-  caption = 'Tabela 1. Esforço de amostragem anual (em km) nas trilhas do Programa Monitora na FLONA do jamari, 2014-2021', booktabs = T, align = c("c", "l", "c")
+  caption = 'Tabela 1. Esforço de amostragem anual (em km) nas trilhas do Programa Monitora na RESEX Cazumbá-Iracema, 2014-2021', booktabs = T, align = c("c", "l", "c")
   )
 ```
 
 
 ## Número total de encontros
 
-A tabela 2 apresenta o número total de encontros e de indivíduos avistados por espécie. As espécies mais encontradas foram, nessa ordem: cutia, caititu, veado-fuboca, quatipuru e queixada. As outras espécies foram encontradas poucas (< 10) vezes. Para as espécies que vivem em grupos, o número indivíduos pode ser maior do que o número de encontros.
+A tabela 2 apresenta o número total de encontros e de indivíduos avistados por espécie (observe-se que para espécies que vivem em grupos, o número de indivíduos pode ser bem maior do que o número de encontros). As espécies mais encontradas foram, nessa ordem: cutia, caititu, veado-fuboca, quatipuru e queixada. As outras espécies foram encontradas poucas vezes.
 
 É importante lembrar que só porque uma espécie foi registrada poucas vezes, não quer dizer necessariamente que ela seja rara. Por exemplo, o protocolo não funciona bem para espécies noturnas como as antas e as pacas, pois as trilhas são percorridas durante o dia, quando essas espécies estão menos ativas. Além disso, espécies que são caçadas podem ficar muito ariscas, fugindo ao menor sinal da aproximação de pessoas.
 
@@ -195,15 +203,15 @@ library(knitr)
 library(kableExtra)
 knitr::kable(
   tabela_1,
-  caption = 'Tabela 2. Numero de registros por especie obtidos pelo protocolo básico do Programa Monitora na FLONA do Jamari, 2014-2021', booktabs = T, align = c("l", "l", "l", "l", "c")
+  caption = 'Tabela 2. Numero de registros por especie obtidos pelo protocolo básico do Programa Monitora na RESEX Cazumbá-Iracema, 2014-2021', booktabs = T, align = c("l", "l", "l", "l", "c")
   )
 ```
 
 
-A Figura 1 apresenta o número total de encontros para as espécies que tiveram pelo menos 5 encontros ao longo de todo o monitoramento.
+A Figura 1 apresenta o número total de encontros para as espécies que tiveram pelo menos 5 encontros ao longo de todo o monitoramento. As espécies mais encontradas foram: quatipuru (família Sciuridae), cutia (*Dasyprocta fuliginosa*), caititu (*Pecari tajacu*), cutiara (*Myoprocta pratti*) e veado mateiro (*Mazama americana*). Os quatipurus incluem três espécies diferentes, que foram agrupadas nestas análises. As outras espécies foram encontradas poucas vezes.
 
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 1. Número total de encontros por espécie na FLONA do Jamari, 2014-2021. Somente espécies com mais de 5 encontros foram incluídas"}
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 1. Número total de encontros por espécie na RESEX Cazumbá-Iracema, 2014-2021. Somente espécies com mais de 5 encontros foram incluídas"}
 #include_graphics(here("encontro_saberes", "total_encontros_por_spp.jpeg"))
 total_encontros_por_spp
 
@@ -212,15 +220,13 @@ total_encontros_por_spp
 
 # Tendências populacionais
 
-Somente a cutia apresentou taxa de encontro anual média > 0.04 ind/km, o que equivale aproximadamente a um encontro a cada 25 km percorridos (Tabela 3). A Figura 2 mostra que há uma tendência de aumento na taxa de avistamento desta espécie ao longo do monitoramento.
-
-As outras especies não tiveram número de encontros suficiente para permitir uma análise de suas tendências populacionais.
+Nesta seção, incluímos somente as quatro espécies que apresentaram taxa de encontro anual média > 0.04 ind/km, o que equivale a um mínimo de um encontro a cada 25 km percorridos: quatipuru, cutia, caititu e cutiara (Tabela 3).
 
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
 knitr::kable(
   taxa_encontro_wide,
-  caption = 'Tabela 3. Taxas de encontro anuais para a cutia na FLONA do Jamari', booktabs = T, align = c("l", "c")
+  caption = 'Tabela 3. Taxas de encontro anuais para as especies mais comuns de mamíferos terrestres na RESEX Cazumbá-Iracema', booktabs = T, align = c("l", "c")
   )
 
 ```
@@ -234,7 +240,7 @@ knitr::kable(
 calcular.registros.por.trilha <- function(nome_especie) {
   
   # esforco por ano por trilha
-  esforco_anual_trilha <- jamari %>%
+  esforco_anual_trilha <- cazumba %>%
     group_by(ano, estacao_amostral) %>%
     summarize(esforco = sum(esforco, na.rm = TRUE)) %>%
     pivot_wider(names_from = ano, values_from = esforco) %>%
@@ -242,7 +248,7 @@ calcular.registros.por.trilha <- function(nome_especie) {
   esforco_anual_trilha
   
   # numero de registros por ano por trilha
-  n_registros_trilha <- jamari %>%
+  n_registros_trilha <- cazumba %>%
     filter(especie == nome_especie) %>%
     group_by(ano, estacao_amostral) %>%
     count() %>%
@@ -269,7 +275,7 @@ calcular.registros.por.trilha <- function(nome_especie) {
 # funcao para rodar modelo populacional bayesiano
 state.space.model <- function(y) {
   # especificar modelo na linguagem BUGS
-  sink(here("encontro_saberes", "jamari", "ssm.jags"))
+  sink(here("encontro_saberes", "cazumba", "ssm.jags"))
   cat("
   model {
   # Priors and constraints
@@ -347,7 +353,7 @@ state.space.model <- function(y) {
   nc <- 3
   
   # chamar o JAGS a partir do R
-  ssm <- jags(jags.data, inits=NULL, parameters, here("encontro_saberes", "jamari", "ssm.jags"), n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb)
+  ssm <- jags(jags.data, inits=NULL, parameters, here("encontro_saberes", "cazumba", "ssm.jags"), n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb)
   
   # checar resultados
   print(ssm, digits = 2)
@@ -409,20 +415,15 @@ computar.plotar.taxa_encontro <- function(nome_especie) {
   # plotar por transecto
   dim(N.est)
   N_trilha1 <- apply(N.est[,1,], 2, mean)
-  N_trilha1[c(2,5,6,7,8)] <- NA
   N_trilha2 <- apply(N.est[,2,], 2, mean)
   N_trilha3 <- apply(N.est[,3,], 2, mean)
-  N_trilha3[c(1,2,7)] <- NA
-  N_trilha4 <- apply(N.est[,4,], 2, mean)
-  N_trilha4[c(1,2,3,4)] <- NA
   N.est_por_trilha <- as_tibble(rbind(N_trilha1,
                                        N_trilha2,
-                                       N_trilha3,
-                                      N_trilha4)) %>%
+                                       N_trilha3)) %>%
     rename('2014' = V1,
            '2015' = V2, '2016' = V3, '2017' = V4,
            '2018' = V5, '2019' = V6, '2020' = V7, '2021' = V8) %>%
-    mutate(trilha = c("Fazenda", "Potosi", "Jacundá", "do Zé")) %>%
+    mutate(trilha = c("Cazumbá", "Gamas", "Alto Caeté")) %>%
     pivot_longer(1:n_years, names_to = "ano")
   N.est_por_trilha
   plot_tendencia_trilha <- ggplot() + 
@@ -443,13 +444,32 @@ computar.plotar.taxa_encontro <- function(nome_especie) {
   
 }
 
+computar.plotar.taxa_encontro("Sciuridae")
 computar.plotar.taxa_encontro("Dasyprocta fuliginosa")
+computar.plotar.taxa_encontro("Myoprocta pratti")
+computar.plotar.taxa_encontro("Pecari tajacu")
 
 ```
 
 
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 2. Taxa de encontro anual para cutia na FLONA do Jamari, 2014-2021"}
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 2. Taxa de encontro anual para cutia na RESEX Cazumbá-Iracema, 2014-2021"}
+plot_tendencia
+
+```
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 2. Taxa de encontro anual para cutia na RESEX Cazumbá-Iracema, 2014-2021"}
+plot_tendencia
+
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 2. Taxa de encontro anual para cutia na RESEX Cazumbá-Iracema, 2014-2021"}
+plot_tendencia
+
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 2. Taxa de encontro anual para cutia na RESEX Cazumbá-Iracema, 2014-2021"}
 plot_tendencia
 
 ```
@@ -460,7 +480,7 @@ plot_tendencia
 A análise anterior avaliou as tendências médias, agregando os dados de todas a trilhas. No entanto, também é importante avaliar o que acontece em cada trilha separadamente. A figura 3 mostra que as trilhas apresentam tendências razoavelmente parecidas, apesar de faltarem dados para algumas trilhas em alguns anos e haver certa variação entre as trilhas. 
 
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 3. Taxa de encontro anual para cutia por trilha na FLONA do Jamari, 2014-2021"}
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 3. Taxa de encontro anual para cutia por trilha na RESEX Cazumbá-Iracema, 2014-2021"}
 plot_tendencia_trilha
 
 ```
@@ -468,9 +488,15 @@ plot_tendencia_trilha
 
 # Perguntas e reflexões
 
-As espécies mais comuns encontradas no monitoramento foram cutia, caititu, veado-fuboca, quatipuru e queixada. Isso está de acordo com a percepção da comunidade?
+O que está acontecendo com os quatipurus? Eles estão realmente declinando, ou as pessoas estão registrando menos por ser uma espécie pequena, que não é caçada etc.?
 
-Como explicar o aumento na taxa de encontro de cutias, em especial depois de 2019? Aconteceu alguma coisa na região que possa explicar isso?
+De forma geral, a população de cutias parece estar estável. No entanto, elas sofreram um tombo em 2017. O que aconteceu nesse ano? Houve algum evento incomum, como uma seca mais forte ou algum desequilíbrio ambiental? 
+
+A cutiara também parece ter sofrido uma queda entre 2015 e 2017, mas não foi um tombo tão forte como o da cutia. O que será que aconteceu?
+
+O caititu parece estar estável... ou está declinando bem devagar ao longo dos anos? Somente com mais anos de monitoramento poderemos saber.
+
+Porque as tendências populacionais variaram tanto entre as trilhas?
 
 Porque é importante monitorar várias trilhas ao invés de apenas uma?
 
