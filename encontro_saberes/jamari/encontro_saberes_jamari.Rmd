@@ -84,7 +84,8 @@ tabela_esforco <- jamari %>%
 # tabela 1: registros por especie
 tabela_1 <- jamari %>%
   filter(classe == "Mammalia",
-         ordem != "Primates") %>%
+         #ordem != "Primates"
+         ) %>%
   group_by(especie) %>%
   summarize(n = n(),
             n_ind = sum(n_animais))%>%
@@ -110,7 +111,14 @@ tabela_1 <- jamari %>%
                         ifelse(especie == "Tamandua tetradactyla", "Mambira",
                         ifelse(especie == "Tapirus terrestris", "Anta",
                         ifelse(especie == "Tayassu pecari", "Queixada",
-                        "no" ))))))))))))))))))) %>%
+                        ifelse(especie == "Ateles chamek", "Macaco-aranha",
+                        ifelse(especie == "Sapajus apella", "Macaco-prego",
+                        ifelse(especie == "Mico rondoni", "Mico-da-cara-preta",
+                        ifelse(especie == "Saguinus weddelli", "Soim",
+                        ifelse(especie == "Saimiri ustus", "Mico-de-cheiro",
+                        ifelse(especie == "Callicebus brunneus", "Zogue-zogue",
+                        ifelse(especie == "Pithecia irrorata", "Macaco-velho",
+                        "no" )))))))))))))))))))))))))) %>%
   select(ordem, familia, especie, nome_popular, n, n_ind) %>%
   rename(Ordem = ordem, Familia = familia, Especie = especie, 
          'Nome popular' = nome_popular, Encontros = n,
@@ -125,7 +133,8 @@ esforco_anual <- jamari %>%
 # numero de registros por ano
 n_registros <- jamari %>%
   filter(classe == "Mammalia",
-         ordem != "Primates") %>%
+         #ordem != "Primates"
+         ) %>%
   group_by(ano, especie) %>%
   count()
 
@@ -153,9 +162,9 @@ total_encontros_por_spp <- tabela_1 %>%
   filter(Encontros > 5) %>%
   ggplot(aes(x = reorder(`Nome popular`, -Encontros), y = Encontros)) +
   geom_col() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   xlab("Espécie") + ylab("Número de encontros") +
   theme_bw() +
+   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
   theme(text = element_text(size=14))
 
 ```
@@ -185,7 +194,7 @@ knitr::kable(
 
 ## Número total de encontros
 
-A tabela 2 apresenta o número total de encontros e de indivíduos avistados por espécie. As espécies mais encontradas foram, nessa ordem: cutia, caititu, veado-fuboca, quatipuru e queixada. As outras espécies foram encontradas poucas (< 10) vezes. Para as espécies que vivem em grupos, o número indivíduos pode ser maior do que o número de encontros.
+A tabela 2 apresenta o número total de encontros e de indivíduos avistados por espécie. As espécies mais encontradas foram, nessa ordem: cutia, macaco-prego, macaco-aranha, soim e mico-da-cara-preta. A maioria das outras espécies foram encontradas poucas (< 10) vezes. Para as espécies que vivem em grupos, o número indivíduos pode ser maior do que o número de encontros.
 
 É importante lembrar que só porque uma espécie foi registrada poucas vezes, não quer dizer necessariamente que ela seja rara. Por exemplo, o protocolo não funciona bem para espécies noturnas como as antas e as pacas, pois as trilhas são percorridas durante o dia, quando essas espécies estão menos ativas. Além disso, espécies que são caçadas podem ficar muito ariscas, fugindo ao menor sinal da aproximação de pessoas.
 
@@ -212,7 +221,10 @@ total_encontros_por_spp
 
 # Tendências populacionais
 
-Somente a cutia apresentou taxa de encontro anual média > 0.04 ind/km, o que equivale aproximadamente a um encontro a cada 25 km percorridos (Tabela 3). A Figura 2 mostra que há uma tendência de aumento na taxa de avistamento desta espécie ao longo do monitoramento.
+Somente quatro espécies apresentaram taxa de encontro anual média > 0.04 ind/km, o que equivale aproximadamente a um encontro a cada 25 km percorridos (Tabela 3): cutia, macaco-prego, macaco-aranha e soim. As Figuras 2 a 5 mostram como as taxas de avistamento variaram para estas espécies ao longo do monitoramento.
+
+A taxa de avistamento de cutia, macaco-aranha e soim parece estar aumentando levemente ao longo do tempo. Por outro lado, a taxa de avistamento do macaco-prego variou bastante ao longo do tempo, com um aumento entre 2016 e 2019, uma queda em 2020 e uma tendência de recuperação em 2021.
+
 
 As outras especies não tiveram número de encontros suficiente para permitir uma análise de suas tendências populacionais.
 
@@ -224,7 +236,6 @@ knitr::kable(
   )
 
 ```
-
 
 
 
@@ -438,39 +449,88 @@ computar.plotar.taxa_encontro <- function(nome_especie) {
   # salvar jpeg
   #ggsave(paste(nome_especie, "2014 a 2021 por trilha.jpeg", sep = " "))
   
-  assign("plot_tendencia", plot_tendencia, .GlobalEnv)
-  assign("plot_tendencia_trilha", plot_tendencia_trilha, .GlobalEnv)
+  #assign("plot_tendencia", plot_tendencia, .GlobalEnv)
+  #assign("plot_tendencia_trilha", plot_tendencia_trilha, .GlobalEnv)
+  assign(paste("plot_tendencia_trilha", gsub(" ", "_", nome_especie), sep="_"), 
+         plot_tendencia_trilha, .GlobalEnv)
+  assign(paste("plot_tendencia", gsub(" ", "_", nome_especie), sep="_"),
+         plot_tendencia, .GlobalEnv)
   
 }
 
 computar.plotar.taxa_encontro("Dasyprocta fuliginosa")
+computar.plotar.taxa_encontro("Sapajus apella")
+computar.plotar.taxa_encontro("Ateles chamek")
+computar.plotar.taxa_encontro("Saguinus weddelli")
 
 ```
 
 
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 2. Taxa de encontro anual para cutia na FLONA do Jamari, 2014-2021"}
-plot_tendencia
+plot_tendencia_Dasyprocta_fuliginosa
+
+```
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 3. Taxa de encontro anual para macaco-prego na FLONA do Jamari, 2014-2021"}
+plot_tendencia_Sapajus_apella
+
+```
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 4. Taxa de encontro anual para macaco-aranha na FLONA do Jamari, 2014-2021"}
+plot_tendencia_Ateles_chamek
+
+```
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 5. Taxa de encontro anual para soim na FLONA do Jamari, 2014-2021"}
+plot_tendencia_Saguinus_weddelli
 
 ```
 
 
 # Tendências populacionais por trilha
 
-A análise anterior avaliou as tendências médias, agregando os dados de todas a trilhas. No entanto, também é importante avaliar o que acontece em cada trilha separadamente. A figura 3 mostra que as trilhas apresentam tendências razoavelmente parecidas, apesar de faltarem dados para algumas trilhas em alguns anos e haver certa variação entre as trilhas. 
+A análise anterior avaliou as tendências médias, agregando os dados de todas a trilhas. No entanto, também é importante avaliar o que acontece em cada trilha separadamente. As figuras 6 a 9 mostram que as trilhas apresentam tendências razoavelmente parecidas, apesar de faltarem dados para algumas trilhas em alguns anos e haver certa variação entre as trilhas. 
 
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 3. Taxa de encontro anual para cutia por trilha na FLONA do Jamari, 2014-2021"}
-plot_tendencia_trilha
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 6. Taxa de encontro anual para cutia por trilha na FLONA do Jamari, 2014-2021"}
+plot_tendencia_trilha_Dasyprocta_fuliginosa
+
+```
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 7. Taxa de encontro anual para macaco-prego por trilha na FLONA do Jamari, 2014-2021"}
+plot_tendencia_trilha_Sapajus_apella
+
+```
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 8. Taxa de encontro anual para macaco-aranha por trilha na FLONA do Jamari, 2014-2021"}
+plot_tendencia_trilha_Ateles_chamek
+
+```
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 9. Taxa de encontro anual para soim por trilha na FLONA do Jamari, 2014-2021"}
+plot_tendencia_trilha_Saguinus_weddelli
 
 ```
 
 
 # Perguntas e reflexões
 
-As espécies mais comuns encontradas no monitoramento foram cutia, caititu, veado-fuboca, quatipuru e queixada. Isso está de acordo com a percepção da comunidade?
+As espécies mais comuns encontradas no monitoramento foram cutia, macaco-prego, macaco-aranha, soim e mico-da-cara-preta. Isso está de acordo com a percepção da comunidade?
 
-Como explicar o aumento na taxa de encontro de cutias, em especial depois de 2019? Aconteceu alguma coisa na região que possa explicar isso?
+Como explicar a tendência de aumento na taxa de encontro de cutias, macaco aranha e soim? Está acontecendo alguma coisa na região que possa explicar isso?
+
+O aumento para as três espécies parece ter sido mais forte em 2021. Isso se deve a algum fator natural, ou será que houve alguma mudança na equipe responsável pelo monitoramento, ou nos métodos utilizados? Será que a equipe está ficando mais treinada?
+
+Como explicar as variações na taxa de avistamento de macacos-prego?
+
+Como explicar as variações na taxa de avistamento entre as trilhas?
 
 Porque é importante monitorar várias trilhas ao invés de apenas uma?
 
