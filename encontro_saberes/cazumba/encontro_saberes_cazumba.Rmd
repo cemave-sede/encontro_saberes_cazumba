@@ -2,7 +2,7 @@
 title: "Encontro dos Saberes RESEX Cazumbá-Iracema (2022)"
 runningheader: "Análise mamíferos terrestres – 2014 a 2021" # only for pdf output
 subtitle: "Análise mamíferos terrestres – 2014 a 2021" # only for html output
-author: "Elildo Carvalho Jr - ICMBio/CENAP"
+author: "Ricardo Sampaio e Elildo Carvalho Jr - ICMBio/CENAP"
 date: "`r Sys.Date()`"
 output:
   tufte::tufte_html: default
@@ -34,6 +34,7 @@ library(here)
 library(tidyverse)
 library(lubridate)
 library(R2jags)
+library(reshape2)
 
 # ler dados
 cazumba <- read_csv("cazumba-2014-2021.csv") 
@@ -56,8 +57,8 @@ cazumba <- cazumba %>%
   select(nome_UC, estacao_amostral, nome_ea, esforco, data, ano, classe, ordem,
          familia, genero, especie, n_animais, distancia) %>%
   mutate(data = as.Date(data, "%d/%m/%Y"),
-         distancia =  as.numeric(str_replace(distancia, ",", ".")) )
-cazumba
+         distancia =  as.numeric(str_replace(distancia, ",", ".")),
+         n_animais = as.numeric(n_animais))
 
 # checar especies e corrigir nomes se necessario
 cazumba %>%
@@ -69,8 +70,7 @@ cazumba %>%
 
 # agrupar sciurideos
 cazumba <- cazumba %>%
-  mutate(especie = replace(especie, especie %in% c("Guerlinguetus ignitus", "Urosciurus spadiceus", "Microsciurus flaviventer"),
-                           "Sciuridae"))
+  mutate(especie = replace(especie, especie %in% c("Guerlinguetus ignitus", "Urosciurus spadiceus", "Microsciurus flaviventer"),"Sciuridae"))
 
 # tabela esforco
 tabela_esforco <- cazumba %>%
@@ -84,8 +84,7 @@ tabela_esforco <- cazumba %>%
 
 # tabela 1: registros por especie
 tabela_1 <- cazumba %>%
-  filter(classe == "Mammalia",
-         ordem != "Primates") %>%
+  filter(classe == "Mammalia") %>%
   group_by(especie) %>%
   summarize(n = n(),
             n_ind = sum(n_animais))%>%
@@ -97,7 +96,7 @@ tabela_1 <- cazumba %>%
                         ifelse(especie == "Mazama americana", "Veado-mateiro",
                         ifelse(especie == "Pecari tajacu", "Caititu",
                         ifelse(especie == "Tayassu pecari", "Queixada",
-                        ifelse(especie == "Speothos venaticus", "Janauira",
+                        ifelse(especie == "Speothos venaticus", "Cachorro-vinagre",
                         ifelse(especie == "Leopardus pardalis", "Maracajá-açu",
                         ifelse(especie == "Leopardus tigrinus", "Gato-do-mato",
                         ifelse(especie == "Leopardus wiedii", "Maracajá-peludo",
@@ -119,7 +118,18 @@ tabela_1 <- cazumba %>%
                         ifelse(especie == "Myoprocta pratti", "Cutiara",
                         ifelse(especie == "Coendou bicolor", "Quandú",
                         ifelse(especie == "Sciuridae", "Quatipuru",
-                        "no" ))))))))))))))))))))))))))) %>%
+                        ifelse(especie == "Alouatta puruensis", "Guariba",
+                        ifelse(especie == "Aotus nigriceps", "Macaco-da-noite",
+                        ifelse(especie == "Ateles chamek", "Macaco-preto",
+                        ifelse(especie == "Callicebus cupreus", "Zogue",
+                        ifelse(especie == "Callimico goeldii", "Soim-preto",
+                        ifelse(especie == "Cebus unicolor", "Cairara",
+                        ifelse(especie == "Saguinus imperator", "Bigodeiro",
+                        ifelse(especie == "Saguinus sp.", "Soim",
+                        ifelse(especie == "Saguinus weddelli", "Soim-vermelho",
+                        ifelse(especie == "Saimiri boliviensis", "Mico-de-cheiro",
+                        ifelse(especie == "Sapajus macrocephalus", "Macaco-prego",       
+                        "no" )))))))))))))))))))))))))))))))))))))) %>%
 select(ordem, familia, especie, nome_popular, n, n_ind) %>%
   rename(Ordem = ordem, Familia = familia, Especie = especie, 
          'Nome popular' = nome_popular, Encontros = n,
@@ -133,14 +143,13 @@ esforco_anual <- cazumba %>%
 
 # numero de registros por ano
 n_registros <- cazumba %>%
-  filter(classe == "Mammalia",
-         ordem != "Primates") %>%
+  filter(classe == "Mammalia") %>%
   group_by(ano, especie) %>%
   count()
 
 # taxa de encontro por ano
 taxa_encontro <- left_join(esforco_anual, n_registros, by=c("ano")) %>%
-  mutate(taxa_encontro = n/(esforco/1000)) %>%
+  mutate(taxa_encontro = n/(esforco/10000)) %>%
   select(ano, especie, taxa_encontro) %>%
   arrange(especie, ano)
 
@@ -148,24 +157,65 @@ taxa_encontro <- left_join(esforco_anual, n_registros, by=c("ano")) %>%
 taxa_encontro_wide <- taxa_encontro %>%
   pivot_wider(names_from = ano, values_from = taxa_encontro) %>%
   select(especie, `2014`, `2015`, `2016`, `2017`,  `2018`, `2019`, `2020`, `2021`) %>%
-  replace(is.na(.), 0.001)
+  replace(is.na(.), 0.0001)
 
 # selecionar as especies mais comuns (taxa media > 0.025)
 taxa_encontro_wide <- taxa_encontro_wide %>%
   mutate(média = round(rowMeans(.[,2:9]),3)) %>%
   arrange(desc(média)) %>%
-  filter(média >= 0.04) %>%
+  filter(média >= 0.4) %>%
   #select(-média) %>%
   mutate_at(2:9, round, 2)
 
 total_encontros_por_spp <- tabela_1 %>%
-  filter(Encontros > 5) %>%
+  filter(Encontros > 5,
+         `Nome popular`!= "no") %>%
   ggplot(aes(x = reorder(`Nome popular`, -Encontros), y = Encontros)) +
   geom_col() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   xlab("Espécie") + ylab("Número de encontros") +
   theme_bw() +
-  theme(text = element_text(size=14))
+  theme(text = element_text(size=14),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+
+#numero de registros por trilha
+n_registros_trilha <- cazumba %>%
+  filter(especie == especie) %>%
+  group_by(nome_ea) %>%
+  count() %>%
+  mutate(n = as.numeric(n)) %>%
+  replace(is.na(.), 0.001)
+n_registros_trilha
+
+# número de espécies por trilha
+n_especies_trilha<-cazumba %>%
+  filter(especie == especie) %>%
+  group_by(nome_ea) %>%
+  summarise(Espécies = n_distinct(especie))
+n_especies_trilha
+
+tabela_4<-cbind(n_registros_trilha,n_especies_trilha[2])
+colnames(tabela_4)<-c("Trilha", "Registros", "Espécies")
+
+# Espécies sensíveis por trilha
+especies_trilha<-cazumba %>%
+  filter(especie == "Alouatta puruensis" |especie == "Ateles chamek"
+         |especie == "Mazama americana"|especie == "Pecari tajacu"
+         |especie == "Tapirus terrestris"|especie == "Tayassu pecari") %>% #, ordem != "Primates") %>%
+  group_by(especie,nome_ea) %>%
+  count() %>%
+  arrange()
+especies_trilha
+
+tabela_5<-dcast(especies_trilha, especie~nome_ea)
+
+tabela_5[is.na(tabela_5)] <- 0
+
+tabela_5$Nome_Comum<-c("Guariba", "Macaco-preto", "Veado-vermelho",
+                       "Caititu", "Anta", "Queixada")
+tabela_5<-tabela_5[c(1,5,2:4)]
+
 
 ```
 
@@ -209,7 +259,7 @@ knitr::kable(
 ```
 
 
-A Figura 1 apresenta o número total de encontros para as espécies que tiveram pelo menos 5 encontros ao longo de todo o monitoramento. As espécies mais encontradas foram: quatipuru (família Sciuridae), cutia (*Dasyprocta fuliginosa*), caititu (*Pecari tajacu*), cutiara (*Myoprocta pratti*) e veado mateiro (*Mazama americana*). Os quatipurus incluem três espécies diferentes, que foram agrupadas nestas análises. As outras espécies foram encontradas poucas vezes.
+A Figura 1 apresenta o número total de encontros para as espécies que tiveram pelo menos 5 encontros ao longo de todo o monitoramento. As espécies mais encontradas foram: quatipuru (família Sciuridae), cutia (*Dasyprocta fuliginosa*), caititu (*Pecari tajacu*), zogue (*Callicebus cupreus*), cutiara (*Myoprocta pratti*), mico-de-cheiro (*Saimiri boliviensis*) e cairara (*Cebus unicolor*). Os quatipurus incluem três espécies diferentes, que foram agrupadas nestas análises. As outras espécies foram encontradas poucas vezes.
 
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 1. Número total de encontros por espécie na RESEX Cazumbá-Iracema, 2014-2021. Somente espécies com mais de 5 encontros foram incluídas"}
@@ -221,7 +271,7 @@ total_encontros_por_spp
 
 # Tendências populacionais
 
-Nesta seção, incluímos somente as quatro espécies que apresentaram taxa de encontro anual média > 0.04 ind/km, o que equivale a um mínimo de um encontro a cada 25 km percorridos: quatipuru, cutia, caititu e cutiara (Tabela 3).
+Nesta seção, incluímos somente as oito espécies que apresentaram taxa de encontro anual média maior que 0.4 encontros a cada 10 km percorridos, o que equivale a um mínimo de um encontro a cada 25 km percorridos: quatipuru, cutia, macaco-prego, caititu, zogue, cutiara, mico-de-cheiro e cairara (Tabela 3).
 
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
@@ -267,7 +317,7 @@ calcular.registros.por.trilha <- function(nome_especie) {
     ungroup() %>%
     select(-estacao_amostral)
   
-  y <- n_registros_trilha/(esforco_anual_trilha/1000)
+  y <- n_registros_trilha/(esforco_anual_trilha/10000)
   
   return(y)
   
@@ -453,8 +503,12 @@ computar.plotar.taxa_encontro <- function(nome_especie) {
 
 computar.plotar.taxa_encontro("Sciuridae")
 computar.plotar.taxa_encontro("Dasyprocta fuliginosa")
-computar.plotar.taxa_encontro("Myoprocta pratti")
+computar.plotar.taxa_encontro("Sapajus macrocephalus")
 computar.plotar.taxa_encontro("Pecari tajacu")
+computar.plotar.taxa_encontro("Callicebus cupreus")
+computar.plotar.taxa_encontro("Myoprocta pratti")
+computar.plotar.taxa_encontro("Saimiri boliviensis")
+computar.plotar.taxa_encontro("Cebus unicolor")
 
 ```
 
@@ -466,18 +520,42 @@ plot_tendencia_Sciuridae
 ```
 
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 2. Taxa de encontro anual para cutia na RESEX Cazumbá-Iracema, 2014-2021"}
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 3. Taxa de encontro anual para cutia na RESEX Cazumbá-Iracema, 2014-2021"}
 plot_tendencia_Dasyprocta_fuliginosa
 
 ```
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 2. Taxa de encontro anual para cutiara na RESEX Cazumbá-Iracema, 2014-2021"}
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 4. Taxa de encontro anual para macaco-prego na RESEX Cazumbá-Iracema, 2014-2021"}
+plot_tendencia_Sapajus_macrocephalus
+
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 5. Taxa de encontro anual para caititu na RESEX Cazumbá-Iracema, 2014-2021"}
+plot_tendencia_Pecari_tajacu
+
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 6. Taxa de encontro anual para zogue na RESEX Cazumbá-Iracema, 2014-2021"}
+plot_tendencia_Callicebus_cupreus
+
+```
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 7. Taxa de encontro anual para cutiara na RESEX Cazumbá-Iracema, 2014-2021"}
 plot_tendencia_Myoprocta_pratti
 
 ```
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 2. Taxa de encontro anual para caititu na RESEX Cazumbá-Iracema, 2014-2021"}
-plot_tendencia_Pecari_tajacu
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 8. Taxa de encontro anual para mico-de-cheiro na RESEX Cazumbá-Iracema, 2014-2021"}
+plot_tendencia_Saimiri_boliviensis
+
+```
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 9. Taxa de encontro anual para cairara na RESEX Cazumbá-Iracema, 2014-2021"}
+plot_tendencia_Cebus_unicolor
 
 ```
 
@@ -487,41 +565,90 @@ plot_tendencia_Pecari_tajacu
 A análise anterior avaliou as tendências médias, agregando os dados de todas a trilhas. No entanto, também é importante avaliar o que acontece em cada trilha separadamente. A figura 3 mostra que as trilhas apresentam tendências razoavelmente parecidas, apesar de faltarem dados para algumas trilhas em alguns anos e haver certa variação entre as trilhas. 
 
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 3. Taxa de encontro anual para quatipuru por trilha na RESEX Cazumbá-Iracema, 2014-2021"}
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 10. Taxa de encontro anual para quatipuru por trilha na RESEX Cazumbá-Iracema, 2014-2021"}
 plot_tendencia_trilha_Sciuridae
 
 ```
 
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 3. Taxa de encontro anual para cutia por trilha na RESEX Cazumbá-Iracema, 2014-2021"}
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 11. Taxa de encontro anual para cutia por trilha na RESEX Cazumbá-Iracema, 2014-2021"}
 plot_tendencia_trilha_Dasyprocta_fuliginosa
 
 ```
 
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 12. Taxa de encontro anual para macaco-prego por trilha na RESEX Cazumbá-Iracema, 2014-2021"}
+plot_tendencia_trilha_Sapajus_macrocephalus
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 3. Taxa de encontro anual para cutiara por trilha na RESEX Cazumbá-Iracema, 2014-2021"}
+```
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 13. Taxa de encontro anual para caititu por trilha na RESEX Cazumbá-Iracema, 2014-2021"}
+plot_tendencia_trilha_Pecari_tajacu
+
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 14. Taxa de encontro anual para zogue por trilha na RESEX Cazumbá-Iracema, 2014-2021"}
+plot_tendencia_trilha_Callicebus_cupreus
+
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 15. Taxa de encontro anual para cutiara por trilha na RESEX Cazumbá-Iracema, 2014-2021"}
 plot_tendencia_trilha_Myoprocta_pratti
 
 ```
 
-
-```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 3. Taxa de encontro anual para caititu por trilha na RESEX Cazumbá-Iracema, 2014-2021"}
-plot_tendencia_trilha_Pecari_tajacu
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 16. Taxa de encontro anual para mico-de-cheiro por trilha na RESEX Cazumbá-Iracema, 2014-2021"}
+plot_tendencia_trilha_Saimiri_boliviensis
 
 ```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 17. Taxa de encontro anual para cairara por trilha na RESEX Cazumbá-Iracema, 2014-2021"}
+plot_tendencia_trilha_Cebus_unicolor
+
+```
+
+# Variações entre trilhas
+
+
+Observamos um número similar de espécies registradas nas três trilhas do programa Monitora, contudo o total de registros foi mais alto na trilha Gamas, seguido por Alto Caeté e Cazumbá.
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+knitr::kable(
+  tabela_4,
+  caption = 'Tabela 4. Total de registros e de espécies de mamíferos terrestres em cada trilha na RESEX Cazumbá-Iracema ', booktabs = T, align = c("l", "c", "c")
+  )
+
+```
+
+De forma geral, um maior número de registros de espécies sensíveis à caça de subsistência foram realizadas na trilha dos Gamas, indicando que esta localidade possui menor pressão de caça ou maior capacidade suporte local. Os macacos-pretos, antas e queixadas apresentaram apenas um único registro nas trilhas, indicando grandes reduções populacionais destas espécies em uma escala maior no interior da RESEX Cazumbá-Iracema.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+knitr::kable(
+  tabela_5,
+  caption = 'Tabela 5. Total de registros realizadas para seis espécies cinegéticas e sensíveis em cada trilha na RESEX Cazumbá-Iracema', booktabs = T, align = c("l", "c", "c", "c","c")
+  )
+
+```
+
 
 
 # Perguntas e reflexões
 
 O que está acontecendo com os quatipurus? Eles estão realmente declinando, ou as pessoas estão registrando menos por ser uma espécie pequena, que não é caçada etc.?
 
-De forma geral, a população de cutias parece estar estável. No entanto, elas sofreram um tombo em 2017. O que aconteceu nesse ano? Houve algum evento incomum, como uma seca mais forte ou algum desequilíbrio ambiental? 
+De forma geral, a população de cutias e cutiaras parecem estar estáveis. No entanto, elas sofreram um tombo em 2017. O que aconteceu nesse ano? Houve algum evento incomum, como uma seca mais forte ou algum desequilíbrio ambiental? 
 
-A cutiara também parece ter sofrido uma queda entre 2015 e 2017, mas não foi um tombo tão forte como o da cutia. O que será que aconteceu?
+O caititu e zogue parecem estar estáveis... ou estão declinando bem devagar ao longo dos anos? Somente com mais anos de monitoramento poderemos saber.
 
-O caititu parece estar estável... ou está declinando bem devagar ao longo dos anos? Somente com mais anos de monitoramento poderemos saber.
+Populações do macaco-prego e mico-de-cheiro parecem estáveis, já as populações dos cairaras parecem aumentar.
 
 Porque as tendências populacionais variaram tanto entre as trilhas?
 
 Porque é importante monitorar várias trilhas ao invés de apenas uma?
+
+A trilha dos Gamas é a melhor? com menor pressão de caça?
+
+Antas, queixadas e macacos-pretos eram mais comuns no passado? Efeito da caça? 
+
 

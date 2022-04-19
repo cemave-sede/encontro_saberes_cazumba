@@ -82,8 +82,9 @@ tabela_esforco <- ouro_preto %>%
 
 # tabela 1: registros por especie
 tabela_1 <- ouro_preto %>%
-  filter(classe == "Mammalia",
-         ordem != "Primates") %>%
+  filter(classe == "Mammalia"#,
+         #ordem != "Primates"
+         ) %>%
   group_by(especie) %>%
   summarize(n = n(),
             n_ind = sum(n_animais))%>%
@@ -106,7 +107,14 @@ tabela_1 <- ouro_preto %>%
                         ifelse(especie == "Dasypus novencimctus", "Tatu-galinha",
                         ifelse(especie == "Tayassu pecari", "Queixada",
                         ifelse(especie == "Urosciurus spadiceus", "Quatipuru",
-                        "no" )))))))))))))))) %>%
+                        ifelse(especie == "Ateles chamek", "Macaco-aranha",
+                        ifelse(especie == "Saguinus weddelli", "Soim",
+                        ifelse(especie == "Cebus unicolor", "Cairara",
+                        ifelse(especie == "Saimiri ustus", "Mico-de-cheiro",
+                        ifelse(especie == "Sapajus apella", "Macaco-prego",
+                        ifelse(especie == "Callicebus brunneus", "Zogue-zogue",
+                        ifelse(especie == "Pithecia irrorata", "Macaco-velho",
+                        "no" ))))))))))))))))))))))) %>%
   select(ordem, familia, especie, nome_popular, n, n_ind) %>%
   rename(Ordem = ordem, Familia = familia, Especie = especie, 
          'Nome popular' = nome_popular, Encontros = n,
@@ -120,8 +128,9 @@ esforco_anual <- ouro_preto %>%
 
 # numero de registros por ano
 n_registros <- ouro_preto %>%
-  filter(classe == "Mammalia",
-         ordem != "Primates") %>%
+  filter(classe == "Mammalia"#,
+         #ordem != "Primates"
+         ) %>%
   group_by(ano, especie) %>%
   count()
 
@@ -134,14 +143,14 @@ taxa_encontro <- left_join(esforco_anual, n_registros, by=c("ano")) %>%
 # colocar em formato wide
 taxa_encontro_wide <- taxa_encontro %>%
   pivot_wider(names_from = ano, values_from = taxa_encontro) %>%
-  select(especie, `2017`,  `2018`, `2019`, `2020`, `2021`) %>%
-  replace(is.na(.), 0.001)
+  select(especie, `2017`,  `2018`, `2019`, `2020`, `2021`) #%>%
+  #replace(is.na(.), 0.001)
 
 # selecionar as especies mais comuns (taxa media > 0.025)
 taxa_encontro_wide <- taxa_encontro_wide %>%
   mutate(média = round(rowMeans(.[,2:6]),3)) %>%
   arrange(desc(média)) %>%
-  filter(média > 0.05) %>%
+  filter(média > 0.04) %>%
   select(-média) %>%
   mutate_at(2:6, round, 2)
 
@@ -149,10 +158,10 @@ total_encontros_por_spp <- tabela_1 %>%
   filter(Encontros > 5) %>%
   ggplot(aes(x = reorder(`Nome popular`, -Encontros), y = Encontros)) +
   geom_col() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   xlab("Espécie") + ylab("Número de encontros") +
   theme_bw() +
-  theme(text = element_text(size=14))
+  theme(text = element_text(size=14)) +
+ theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
 ```
 
@@ -181,7 +190,7 @@ knitr::kable(
 
 ## Número total de encontros
 
-A tabela 2 apresenta o número total de encontros e de indivíduos avistados por espécie. As espécies mais encontradas foram, nessa ordem: cutia, caititu, quatipuru e veado fuboca/mateiro. As outras espécies foram encontradas poucas vezes. Para as espécies que vivem em grupos, o número indivíduos pode ser maior do que o número de encontros.
+A tabela 2 apresenta o número total de encontros e de indivíduos avistados por espécie. As espécies mais encontradas foram, nessa ordem: macaco-prego, cutia, mico-de-cheiro, macaco-aranha e zogue-zogue. As outras espécies foram encontradas poucas vezes. Para as espécies que vivem em grupos, o número indivíduos pode ser maior do que o número de encontros.
 
 É importante lembrar que só porque uma espécie foi registrada poucas vezes, não quer dizer necessariamente que ela seja rara. Por exemplo, o protocolo não funciona bem para espécies noturnas como as antas e as pacas, pois as trilhas são percorridas durante o dia, quando essas espécies estão menos ativas. Além disso, espécies que são caçadas podem ficar muito ariscas, fugindo ao menor sinal da aproximação de pessoas.
 
@@ -208,7 +217,7 @@ total_encontros_por_spp
 
 # Tendências populacionais
 
-Somente a cutia apresentou taxa de encontro anual média > 0.05 ind/km, o que equivale aproximadamente a um encontro a cada 20 km percorridos (Tabela 3). A Figura 2 mostra que a taxa de avistamento para esta espécie permaneceu estável ao longo do monitoramento.
+Somente o macaco-prego e cutia apresentaram taxa de encontro anual média > 0.04 ind/km, o que equivale aproximadamente a um encontro a cada 25 km percorridos (Tabela 3). A Figura 2 mostra que a taxa de avistamento para o macaco-prego diminuiu drasticamente ao longo do monitoramento. Já a taxa de avistamento para a cutia se manteve estável durante a maior parte do tempo, mas sofreu uma queda em 2021 (Figura 3).
 
 As outras especies não tiveram número de encontros suficiente para permitir uma análise de suas tendências populacionais.
 
@@ -216,7 +225,7 @@ As outras especies não tiveram número de encontros suficiente para permitir um
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
 knitr::kable(
   taxa_encontro_wide,
-  caption = 'Tabela 3. Taxas de encontro anuais para a cutia na Resex do Rio Ouro Preto', booktabs = T, align = c("l", "c")
+  caption = 'Tabela 3. Taxas de encontro anuais na Resex do Rio Ouro Preto', booktabs = T, align = c("l", "c")
   )
 
 ```
@@ -244,14 +253,14 @@ calcular.registros.por.trilha <- function(nome_especie) {
     count() %>%
     mutate(n = as.numeric(n)) %>%
     pivot_wider(names_from = ano, values_from = n) %>%
-    select(estacao_amostral, `2017`,  `2018`, `2019`, `2020`, `2021`) %>%
-    replace(is.na(.), 0.001)
+    select(estacao_amostral, `2017`,  `2018`, `2019`, `2020`, `2021`) #%>%
+    #replace(is.na(.), 0.001)
   n_registros_trilha
   
   # combinar registros e esforco para obter taxa de encontro
   esforco_anual_trilha <- esforco_anual_trilha %>%
-    select(-estacao_amostral) %>%
-    replace(is.na(.), 500) # inputar valor arbitrariamente alto para deixar numero de registros baixo mas !=0
+    select(-estacao_amostral) #%>%
+    #replace(is.na(.), 500) # inputar valor arbitrariamente alto para deixar numero de registros baixo mas !=0
   n_registros_trilha <- n_registros_trilha %>%
     ungroup() %>%
     select(-estacao_amostral)
@@ -385,7 +394,8 @@ computar.plotar.taxa_encontro <- function(nome_especie) {
     geom_line(data=modelo_quantis, aes(x=ano, y=quant50), size=0.5, alpha=0.5) +
     geom_point(data=modelo_quantis, aes(x=ano, y=quant50), size=2, alpha=0.5) +
     #stat_smooth(data=modelo_quantis, aes(x=ano, y=quant50), method = "lm", formula = y ~ poly(x, 5), se = FALSE) +
-    ylim(0, max(modelo_quantis$quant975)+0.05) +
+    #ylim(0, max(modelo_quantis$quant975)+0.05) +
+    coord_cartesian(ylim = c(0, max(modelo_quantis$quant75)+0.05) ) +
     xlab("Ano") + 
     ylab("Taxa de encontro") +
     theme_bw() +
@@ -410,6 +420,11 @@ computar.plotar.taxa_encontro <- function(nome_especie) {
     mutate(trilha = c("Francisco Leonel", "Manoel Teofilo", "Serra Grande")) %>%
     pivot_longer(1:5, names_to = "ano")
   N.est_por_trilha
+  
+  N.est_por_trilha <- y %>%
+    mutate(trilha = c("Francisco Leonel", "Manoel Teofilo", "Serra Grande")) %>%
+    pivot_longer(1:n_years, names_to = "ano")
+  
   plot_tendencia_trilha <- ggplot() + 
     geom_line(data=N.est_por_trilha, aes(x=ano, y=value, group=trilha, color=trilha), size=3, alpha=0.5) +
     geom_point(data=N.est_por_trilha, aes(x=ano, y=value, group=trilha, color=trilha), size=5, alpha=0.5) +
@@ -423,37 +438,58 @@ computar.plotar.taxa_encontro <- function(nome_especie) {
   # salvar jpeg
   #ggsave(paste(nome_especie, "2017 a 2021 por trilha.jpeg", sep = " "))
   
-  assign("plot_tendencia", plot_tendencia, .GlobalEnv)
-  assign("plot_tendencia_trilha", plot_tendencia_trilha, .GlobalEnv)
+  #assign("plot_tendencia", plot_tendencia, .GlobalEnv)
+  #assign("plot_tendencia_trilha", plot_tendencia_trilha, .GlobalEnv)
+  assign(paste("plot_tendencia_trilha", gsub(" ", "_", nome_especie), sep="_"), 
+         plot_tendencia_trilha, .GlobalEnv)
+  assign(paste("plot_tendencia", gsub(" ", "_", nome_especie), sep="_"),
+         plot_tendencia, .GlobalEnv)
   
 }
 
+computar.plotar.taxa_encontro("Sapajus apella")
 computar.plotar.taxa_encontro("Dasyprocta fuliginosa")
 
 ```
 
 
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 2. Taxa de encontro anual para cutia na Resex do Rio Ouro Preto, 2017-2021"}
-plot_tendencia
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 2. Taxa de encontro anual para macaco-prego na Resex do Rio Ouro Preto, 2017-2021"}
+plot_tendencia_Sapajus_apella
+
+```
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 3. Taxa de encontro anual para cutia na Resex do Rio Ouro Preto, 2017-2021"}
+plot_tendencia_Dasyprocta_fuliginosa
 
 ```
 
 
 # Tendências populacionais por trilha
 
-A análise anterior avaliou as tendências médias, agregando os dados de todas a trilhas. No entanto, também é importante avaliar o que acontece em cada trilha separadamente. A figura 3 mostra que houve muita variação entre as trilhas, com a taxa de encontro de cutias declinando nas trilhas Francisco Leonel e Manoel Teofilo, e aumentando na trilha Serra Grande. 
+A análise anterior avaliou as tendências médias, agregando os dados de todas a trilhas. No entanto, também é importante avaliar o que acontece em cada trilha separadamente. A figura 4 mostra que o macaco-prego declinou em todas as trilhas enquanto que as tendências para a cutia variaram bastante entre as trilhas. 
 
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 3. Taxa de encontro anual para cutia por trilha na Resex do Rio Ouro Preto, 2017-2021"}
-plot_tendencia_trilha
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 4. Taxa de encontro anual para macaco-prego por trilha na Resex do Rio Ouro Preto, 2017-2021"}
+plot_tendencia_trilha_Sapajus_apella
+
+```
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Figura 5. Taxa de encontro anual para cutia por trilha na Resex do Rio Ouro Preto, 2017-2021"}
+plot_tendencia_trilha_Dasyprocta_fuliginosa
 
 ```
 
 
 # Perguntas e reflexões
 
-As espécies mais comuns encontradas no monitoramento foram cutia, caititu, quatipuru e veado fuboca/mateiro. Isso está de acordo com a percepção da comunidade?
+As espécies mais comuns encontradas no monitoramento foram macaco-prego, cutia, mico-de-cheiro, macaco-aranha e zogue-zogue. Isso está de acordo com a percepção da comunidade?
+
+A tendência de queda para o macaco-prego está de acordo com a percepção da comunidade? Como explicar essa tendência? Está acontecendo alguma coisa na região que possa explicar isso?
+
+Como explicar a estabilidade da cutia, e a queda em 2021?
 
 Porque as tendências populacionais para as cutias variaram tanto entre as trilhas?
 
